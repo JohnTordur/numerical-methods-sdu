@@ -3,6 +3,8 @@
 #include <cmath>
 #include <fstream>
 #include "nr3.h"
+#include "ludcmp.h"
+#include "svd.h"
 #include "utilities.h"
 
 
@@ -14,8 +16,9 @@ MatDoub makeAPolynomialFromNdegree(int n, VecDoub x){
     // Loop through all the rows:
     for(int r = 0; r < x.size();r++){
         // Generate a row at a time:
-        for( int i = 0; i < n; i++){
-           (*A)[r][i] = pow(x[r],i);
+        (*A)[r][0] =1.0; 
+        for( int i = 1; i < n; i++){
+           (*A)[r][i] = pow(x[r],(double)i);
         }
     }
     return *A;
@@ -28,6 +31,34 @@ int main() {
     // Add additional scoping to avoid unintentional errors
     // betweem the filip problem and the pontius problem.
     {
+        VecDoub xPont(40); VecDoub yPont(40);
+        ifstream Pont("PontiusData.dat");
+        for(int i = 0; i < 40; i++) {
+            Pont >> yPont[i];
+            Pont >> xPont[i];
+        }
+        // Generate an A matrix of the form 1 x x^2 x^3 ... x^n
+        //                                  1 x x^2 x^3 ... x^n
+        //                                      ....    ... ...
+        //                                      ....    ... ...
+        //                                  1 x x^2 x^3 ... x^n
+        auto A = makeAPolynomialFromNdegree(3,xPont);
+
+        auto AT= util::Transpose(A);
+
+        // Calculate Alpha as transpose(A)*A
+        auto Alpha =AT*A;
+        // Calculate Beta as transpose(A)*b
+        auto Beta =AT*yPont; 
+
+        LUdcmp ldcmp=LUdcmp(Alpha);
+        VecDoub x(3);
+        ldcmp.solve(Beta,x);
+        util::print(x);
+
+    }
+    
+    {
         VecDoub xFilip(82); VecDoub yFilip(82);
         ifstream Filip("FilipData.dat");
         for(int i = 0; i < 82; i++) {
@@ -39,31 +70,21 @@ int main() {
         //                                      ....    ... ...
         //                                      ....    ... ...
         //                                  1 x x^2 x^3 ... x^n
-        auto A = makeAPolynomialFromNdegree(3,xFilip);
-
-        message("A");
-        util::print(A);
-        auto ATranspose = util::Transpose(A);
-        message("A Tranposed:");
-        util::print(ATranspose);
-        cout << ATranspose.nrows()<< "\n";
+        auto A = makeAPolynomialFromNdegree(11,xFilip);
+        //util::print(A);
+        auto AT= util::Transpose(A);
 
         // Calculate Alpha as transpose(A)*A
-        auto Alpha =A*ATranspose;
-        message("Alpha:");
-        util::print(Alpha);
+        auto Alpha =AT*A;
         // Calculate Beta as transpose(A)*b
-        auto Beta = ATranspose*yFilip; 
-        message("Beta:");
-        util::print(Beta);
+        auto Beta =AT*yFilip; 
+        LUdcmp ldcmp=LUdcmp(Alpha);
+        VecDoub x(11);  
+        ldcmp.solve(Beta,x);
+       // SVD svd =SVD(Alpha);
+        //svd.solve(Beta,x);
+        //auto rank = svd.rank(0.00001);
+        util::print(x);
     }
-    VecDoub xPont(40); VecDoub yPont(40);
-    ifstream Pont("PontiusData.dat");
-    for(int i = 0; i < 40; i++) {
-        Pont >> yPont[i];
-        Pont >> xPont[i];
-    }
-
-
     return 0;
 }
